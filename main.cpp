@@ -35,11 +35,12 @@ int* fileReader(string fileName, int &num_frames, string &algo, int &str_size) {
 
     //Get size of reference string
     int size = 0;
-    while (getline(ss, line, ',')) {
+    stringstream ss2(line);
+    while (getline(ss2, line, ',')) {
         size++;
     }
-    //Account for 2 parameters at beginning
-    size -= 2; 
+    //Account for 2 parameters at beginning 
+    size -= 2;
     str_size = size;
 
     //Get the rest of the string (reference string)
@@ -59,46 +60,52 @@ int* fileReader(string fileName, int &num_frames, string &algo, int &str_size) {
     return temp_list;
 }
 
-int** OPT(int* ref_List, int num_frames, int str_size) {
+int** OPT(int* ref_List, bool* &fault_array, int num_frames, int str_size) {
     //Table to hold all frames
     int** frame_table = new int*[str_size];
     for(int i = 0; i < str_size; i++) {
         frame_table[i] = new int[num_frames]; 
+        // Now, initialize the inner array with -1 for check later on
+        for (int j = 0; j < num_frames; j++) {
+            frame_table[i][j] = -1;
+        }
     }
- 
+
     //Iterate through the reference list
     for(int i = 0; i < str_size; i++) {
-        int* curr_frame = new int[num_frames]; 
-        //Holds the current frame to be stored in table
-        if (i != 0)
-            curr_frame = frame_table[i-1];
+        //Set current frame to previous to test against
+        if (i > 0){
+            for (int j = 0; j < num_frames; j++) {
+                frame_table[i][j] = frame_table[i - 1][j];
+            }
+        }
         
-
         //Store current page number 
         int curr_page = ref_List[i];
         
         //Check if the page is already in the frame
         bool page_found = 0;
-        for(int j = 0; i < num_frames; i++) {
+        for(int j = 0; j < num_frames; j++) {
             //Check if the page is in the frame
-            if (curr_frame[j] == curr_page) {
+            if (frame_table[i][j] == curr_page) {
                 //Page is already in the frame, so break out of the loop
                 page_found = 1;
                 break; 
             }
-            
         }
 
         //Check if the frame is full, add to the frame if not
         bool frame_full = 1;
         if(!page_found){
+            //IF the page is not found
+            //Its a fault
+            fault_array[i] = 1;
+
             for(int j = 0; j < num_frames; j++) {
                 //Check if the frame is empty
-                if (curr_frame[j] == -1) {
+                if (frame_table[i][j] == -1) {
                     //Add the page to the frame
-                    curr_frame[j] = curr_page;
-                    //Add to table as thats the end of this iteration
-                    frame_table[i] = curr_frame;
+                    frame_table[i][j] = curr_page;
                     frame_full = 0;
                     break; 
                 }
@@ -106,33 +113,32 @@ int** OPT(int* ref_List, int num_frames, int str_size) {
         }
 
         //If the frame is full, we need to replace a page
-        if(frame_full) {
-
+        if(frame_full && !page_found) {
             //Find the page to replace
-            int page_to_replace = -1; 
-            int farthest_index = -1; 
+            int Rpage_index = 0; 
+            int farthest_index = i; 
+
             for(int j = 0; j < num_frames; j++) {
                 //Find the farthest page in the future
-                for(int k = i + 1; k < sizeof(ref_List); k++) {
-                    if (curr_frame[j] == ref_List[k]) {
-                        //Check if this is the farthest page
-                        if (k > farthest_index) {
-                            farthest_index = k;
-                            page_to_replace = curr_frame[j];
-                        }
+                int curr_dist = str_size + 1;
+                //Start at one after current page 
+                for(int k = i + 1; k < str_size; k++) {
+                    if (frame_table[i][j] == ref_List[k]) {
+                        curr_dist = k; 
+                        break;
                     }
+                }
+
+                 //Check if this is the farthest page
+                 if (curr_dist > farthest_index) {
+                    //If so, save index and page to replace for later
+                    farthest_index = curr_dist;
+                    Rpage_index = j;
                 }
             }
 
             //Replace the page
-            for(int j = 0; j < num_frames; j++) {
-                if (curr_frame[j] == page_to_replace) {
-                    curr_frame[j] = curr_page;
-                    //Add to table as thats the end of this iteration
-                    frame_table[i] = curr_frame;
-                    break; 
-                }
-            }
+            frame_table[i][Rpage_index] = curr_page;
         }
     }
     return frame_table;
@@ -144,8 +150,39 @@ int** OPT(int* ref_List, int num_frames, int str_size) {
 //       str_size - the size of the reference string
 //Output: VOID
 //Description: Prints the frame table to the console
-void printTable(int** frame_table, int num_frames, int str_size) {
-   
+void printTable(int** frame_table, bool* fault_array, int num_frames, int str_size) {
+    //Print top of table
+    for (int i = 0; i <= (str_size * 2); i ++)
+    {
+        cout << "_"; 
+    }
+    //Print each row of table
+    for(int r = 0; r < num_frames; r++)
+    {
+        cout << endl << "|"; 
+        for(int i = 0; i < str_size; i++)
+        {
+            //Only print page faults
+            if (fault_array[i] == 1)
+            {
+                if (frame_table[i][r] == -1) {
+                    cout << " |"; 
+                }
+                else {
+                    cout << frame_table[i][r] << "|"; 
+                }
+            }
+            else {
+                cout << " |"; 
+            }
+        }
+    }
+    //Final line of table 
+    cout << endl;
+    for (int i = 0; i <= (str_size * 2); i ++)
+    {
+        cout << "_"; 
+    }
 }
 
 //Main Function
@@ -168,26 +205,39 @@ int main() {
     for (int i = 0; i < str_size; i++) {
         cout << ref_List[i] << " "; 
     }
+    cout << endl;
 
     //Initialize Frame Table 
-    int** frame_table = new int*[str_size]; //Table to hold all frames
-    for(int i = 0; i < str_size; i++) {
-        frame_table[i] = new int[num_frames]; 
-    }
+    int** frame_table = nullptr; 
+    bool * fault_array = new bool[str_size];
+    for(int i = 0; i < str_size; i++) fault_array[i] = 0;
 
     if(algo == "O"){
-        frame_table = OPT(ref_List, num_frames, str_size);
+        frame_table = OPT(ref_List, fault_array, num_frames, str_size);
     }
     else if (algo == " ")//Whichever of the two u chose
     {
-    
+        //You'll want your algo to populate and return a 2D int array of the frame table   
+        //See initialization above
     }
     else {//Invalid Algorithm
         cout << "Invalid Algorithm: " + algo << endl;
+        delete[] ref_List;
+        delete[] fault_array;
         return 1;
     }
 
-    printTable(frame_table, num_frames, str_size); 
-    cout << "page frames" << endl; //Final part of Output
+    printTable(frame_table, fault_array, num_frames, str_size); 
+    cout << endl << "page frames" << endl; //Final part of Output
+
+    //Free memory
+    delete[] ref_List; 
+    delete[] fault_array;
+    for (int i = 0; i < str_size; i++) {
+        delete[] frame_table[i]; 
+    }
+    delete[] frame_table;
+
+    return 0;
 }
 
