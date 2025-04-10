@@ -144,6 +144,60 @@ int** OPT(int* ref_List, bool* &fault_array, int num_frames, int str_size) {
     return frame_table;
 }
 
+int** FIFO(int* ref_List, bool*& fault_array, int num_frames, int str_size) {
+    int** frame_table = new int* [str_size];
+    for (int i = 0; i < str_size; i++) {
+        frame_table[i] = new int[num_frames];
+        for (int j = 0; j < num_frames; j++) {
+            frame_table[i][j] = -1;
+        }
+    }
+
+    int pointer = 0; // Tracks the position to replace (FIFO style)
+
+    for (int i = 0; i < str_size; i++) {
+        if (i > 0) {
+            for (int j = 0; j < num_frames; j++) {
+                frame_table[i][j] = frame_table[i - 1][j];
+            }
+        }
+
+        int curr_page = ref_List[i];
+        bool page_found = false;
+
+        // Check if current page is already in a frame
+        for (int j = 0; j < num_frames; j++) {
+            if (frame_table[i][j] == curr_page) {
+                page_found = true;
+                break;
+            }
+        }
+
+        if (!page_found) {
+            fault_array[i] = 1;
+
+            // If there's empty space, use it
+            bool inserted = false;
+            for (int j = 0; j < num_frames; j++) {
+                if (frame_table[i][j] == -1) {
+                    frame_table[i][j] = curr_page;
+                    inserted = true;
+                    break;
+                }
+            }
+
+            // If no empty space, replace oldest (FIFO)
+            if (!inserted) {
+                frame_table[i][pointer] = curr_page;
+                pointer = (pointer + 1) % num_frames; // Move to next position in circular order
+            }
+        }
+    }
+
+    return frame_table;
+}
+
+
 //Prints the Frame Table
 //Input: frame_table - the table to print
 //       num_frames - the number of frames
@@ -189,7 +243,7 @@ void printTable(int** frame_table, bool* fault_array, int num_frames, int str_si
 int main() {
     //Temp strings for file names
     string oFile = "OPT.txt";
-    string fFile = ""; //Either FIFO.txt or LRU.txt
+    string fFile = "FIFO.txt"; //Either FIFO.txt or LRU.txt
 
     //Initialize variables
     string algo = " "; 
@@ -197,7 +251,7 @@ int main() {
     int str_size = 0;
 
     //Read in and store file contents
-    int* ref_List = fileReader(oFile, num_frames, algo, str_size); 
+    int* ref_List = fileReader(fFile, num_frames, algo, str_size); 
 
     //Print the Reference String (First Part of Output)
     cout << "Reference String: " << endl; 
@@ -215,8 +269,9 @@ int main() {
     if(algo == "O"){
         frame_table = OPT(ref_List, fault_array, num_frames, str_size);
     }
-    else if (algo == " ")//Whichever of the two u chose
+    else if (algo == "F")//Whichever of the two u chose
     {
+        frame_table = FIFO(ref_List, fault_array, num_frames, str_size);
         //You'll want your algo to populate and return a 2D int array of the frame table   
         //See initialization above
     }
