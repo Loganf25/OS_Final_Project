@@ -1,3 +1,6 @@
+//Operating Systems Final Project
+//Logan Flora
+//Jack Chiolino
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -60,6 +63,14 @@ int* fileReader(string fileName, int &num_frames, string &algo, int &str_size) {
     return temp_list;
 }
 
+//OPT Function 
+//Input: 
+//       ref_List - reference to the linked list to string contents
+//       fault_array - reference to array holding frames that faulted
+//       num_frames - reference to the number of frames
+//       algo - reference to the algorithm name
+//Output: A 2D array holding the frames and their contents
+//Description: Assigns pages to a frame based on Optimal Frame Assignment Algo
 int** OPT(int* ref_List, bool* &fault_array, int num_frames, int str_size) {
     //Table to hold all frames
     int** frame_table = new int*[str_size];
@@ -144,6 +155,14 @@ int** OPT(int* ref_List, bool* &fault_array, int num_frames, int str_size) {
     return frame_table;
 }
 
+//FIFO Algo
+//Input: 
+//       ref_List - reference to the linked list to string contents
+//       fault_array - reference to array holding frames that faulted
+//       num_frames - reference to the number of frames
+//       algo - reference to the algorithm name
+//Output: A 2D array holding the frames and their contents
+//Description: Assigns pages to a frame based on First In First Out Algo
 int** FIFO(int* ref_List, bool*& fault_array, int num_frames, int str_size) {
     int** frame_table = new int* [str_size];
     for (int i = 0; i < str_size; i++) {
@@ -243,7 +262,8 @@ void printTable(int** frame_table, bool* fault_array, int num_frames, int str_si
 int main() {
     //Temp strings for file names
     string oFile = "OPT.txt";
-    string fFile = "FIFO.txt"; //Either FIFO.txt or LRU.txt
+    string fFile = "FIFO.txt";
+    string nFile = "new.txt"; 
 
     //Initialize variables
     string algo = " "; 
@@ -251,7 +271,7 @@ int main() {
     int str_size = 0;
 
     //Read in and store file contents
-    int* ref_List = fileReader(fFile, num_frames, algo, str_size); 
+    int* ref_List = fileReader(nFile, num_frames, algo, str_size); 
 
     //Print the Reference String (First Part of Output)
     cout << "Reference String: " << endl; 
@@ -282,6 +302,17 @@ int main() {
         return 1;
     }
 
+    //Calculate the number of page faults based on array
+    int fault_cout = 0;
+    for(int i = 0; i < str_size; i++) {
+        if (fault_array[i] == 1) {
+            fault_cout++; 
+        }
+    }
+
+    //Print number of page faults
+    cout << endl << "# of Page Faults: " << fault_cout << endl; 
+    //Print Table
     printTable(frame_table, fault_array, num_frames, str_size); 
     cout << endl << "page frames" << endl; //Final part of Output
 
